@@ -19,7 +19,10 @@ enum ControlType {
   touch,
 
   /// Joystick controls
-  joystick
+  joystick,
+
+  /// Both controls
+  both
 }
 
 ///Maze
@@ -132,63 +135,98 @@ class _MazeState extends State<Maze> {
   Widget build(BuildContext context) {
     return Container(
       height: MediaQuery.of(context).size.height,
-      child: Column(
+      child: Stack(
         // mainAxisSize: MainAxisSize.max,
         children: [
-          Flexible(
-            child: Builder(builder: (context) {
-              if (_loaded) {
-                return GestureDetector(
+          Builder(builder: (context) {
+            if (_loaded) {
+              return AbsorbPointer(
+                absorbing: widget.controlType == ControlType.joystick,
+                child: GestureDetector(
                     onVerticalDragUpdate: (info) =>
                         _mazePainter.updatePosition(info.localPosition),
                     child: CustomPaint(
                         painter: _mazePainter,
                         size: Size(widget.width ?? context.width,
-                            widget.height ?? context.height)));
+                            widget.height ?? context.height))),
+              );
+            } else {
+              if (widget.loadingWidget != null) {
+                return widget.loadingWidget!;
               } else {
-                if (widget.loadingWidget != null) {
-                  return widget.loadingWidget!;
-                } else {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
-                }
+                return const Center(
+                  child: CircularProgressIndicator(),
+                );
               }
-            }),
-          ),
-          widget.controlType == ControlType.joystick
-              // ? getJoyStick()
-              ? JoystickView(
-                  size: 120,
-                  onDirectionChanged: (double degrees, double disFromCenter) {
-                    var radians = degrees * pi / 180;
-                    var x = cos(radians) * disFromCenter;
-                    var y = sin(radians) * disFromCenter;
-
-                    Direction? direction = null;
-                    if (x > 0.1)
-                      direction = Direction.up;
-                    else if (x < -0.1)
-                      direction = Direction.down;
-                    else if (y > 0.1)
-                      direction = Direction.right;
-                    else if (y < -0.1) direction = Direction.left;
-
-                    // print('DIRECTION $direction');
-                    // print(
-                    //     '$degrees / $disFromCenter  $x == $y  / ${MediaQuery.of(context).size.width / 2}');
-                    // _mazePainter.updatePositionByXY(x, y);
-
-                    if (direction != null) _mazePainter.movePlayer(direction);
-                  },
-                )
-              : Container(),
+            }
+          }),
+          widget.controlType != ControlType.touch ? getJoyStick() : Container(),
         ],
       ),
     );
   }
 
   Widget getJoyStick() {
+    var now = DateTime.now().millisecondsSinceEpoch;
+    var _joystickLeft = context.width / 2 - 100;
+    var _joystickTop = context.height / 2 - 100;
+    return StatefulBuilder(builder: (context, setState) {
+      return Positioned(
+        left: _joystickLeft,
+        top: _joystickTop,
+        child: GestureDetector(
+          onPanUpdate: (details) {
+            setState(() {
+              _joystickLeft = details.globalPosition.dx - 200;
+              _joystickTop = details.globalPosition.dy;
+            });
+          },
+          // onHorizontalDragUpdate: (details) {
+          //   setState(() {
+          //     _joystickTop = details.localPosition.dy - 100;
+          //   });
+          // },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const Icon(Icons.drag_handle),
+              JoystickView(
+                size: 200,
+                opacity: .3,
+                onDirectionChanged: (double degrees, double disFromCenter) {
+                  var radians = degrees * pi / 180;
+                  var x = cos(radians) * disFromCenter;
+                  var y = sin(radians) * disFromCenter;
+
+                  Direction? direction = null;
+                  if (x > 0.1)
+                    direction = Direction.up;
+                  else if (x < -0.1)
+                    direction = Direction.down;
+                  else if (y > 0.1)
+                    direction = Direction.right;
+                  else if (y < -0.1) direction = Direction.left;
+
+                  // print('DIRECTION $direction');
+                  // print(
+                  //     '$degrees / $disFromCenter  $x == $y  / ${MediaQuery.of(context).size.width / 2}');
+                  // _mazePainter.updatePositionByXY(x, y);
+
+                  if (direction != null &&
+                      (DateTime.now().millisecondsSinceEpoch - now) > 1000) {
+                    _mazePainter.movePlayer(direction);
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget getJoyStick2() {
     return Joystick(
         size: 100,
         isDraggable: false,
