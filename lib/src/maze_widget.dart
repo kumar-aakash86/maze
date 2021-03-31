@@ -1,11 +1,26 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:ui' as ui;
+
+// ignore: import_of_legacy_library_into_null_safe
+import 'package:joystick/joystick.dart';
+import 'package:control_pad/control_pad.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:universal_io/io.dart';
+
 import 'maze_painter.dart';
 import 'models/item.dart';
+
+///Control types
+enum ControlType {
+  /// Touch controls
+  touch,
+
+  /// Joystick controls
+  joystick
+}
 
 ///Maze
 ///
@@ -29,6 +44,8 @@ class Maze extends StatefulWidget {
     this.wallColor = Colors.black,
     this.wallThickness = 3.0,
     this.width,
+    this.mazeBackgroundColor = Colors.transparent,
+    this.controlType = ControlType.touch,
   });
 
   ///List of checkpoints
@@ -69,6 +86,12 @@ class Maze extends StatefulWidget {
   ///Width of the maze
   final double? width;
 
+  ///Background color of maze
+  final Color mazeBackgroundColor;
+
+  ///Control Types
+  final ControlType controlType;
+
   @override
   _MazeState createState() => _MazeState();
 }
@@ -100,31 +123,94 @@ class _MazeState extends State<Maze> {
       rows: widget.rows,
       wallColor: widget.wallColor ?? Colors.black,
       wallThickness: widget.wallThickness ?? 4.0,
+      mazeBackgroundColor: widget.mazeBackgroundColor,
     );
     setState(() => _loaded = true);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(child: Builder(builder: (context) {
-      if (_loaded) {
-        return GestureDetector(
-            onVerticalDragUpdate: (info) =>
-                _mazePainter.updatePosition(info.localPosition),
-            child: CustomPaint(
-                painter: _mazePainter,
-                size: Size(widget.width ?? context.width,
-                    widget.height ?? context.height)));
-      } else {
-        if (widget.loadingWidget != null) {
-          return widget.loadingWidget!;
-        } else {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        }
-      }
-    }));
+    return Container(
+      height: MediaQuery.of(context).size.height,
+      child: Column(
+        // mainAxisSize: MainAxisSize.max,
+        children: [
+          Flexible(
+            child: Builder(builder: (context) {
+              if (_loaded) {
+                return GestureDetector(
+                    onVerticalDragUpdate: (info) =>
+                        _mazePainter.updatePosition(info.localPosition),
+                    child: CustomPaint(
+                        painter: _mazePainter,
+                        size: Size(widget.width ?? context.width,
+                            widget.height ?? context.height)));
+              } else {
+                if (widget.loadingWidget != null) {
+                  return widget.loadingWidget!;
+                } else {
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
+                }
+              }
+            }),
+          ),
+          widget.controlType == ControlType.joystick
+              // ? getJoyStick()
+              ? JoystickView(
+                  size: 120,
+                  onDirectionChanged: (double degrees, double disFromCenter) {
+                    var radians = degrees * pi / 180;
+                    var x = cos(radians) * disFromCenter;
+                    var y = sin(radians) * disFromCenter;
+
+                    Direction? direction = null;
+                    if (x > 0.1)
+                      direction = Direction.up;
+                    else if (x < -0.1)
+                      direction = Direction.down;
+                    else if (y > 0.1)
+                      direction = Direction.right;
+                    else if (y < -0.1) direction = Direction.left;
+
+                    // print('DIRECTION $direction');
+                    // print(
+                    //     '$degrees / $disFromCenter  $x == $y  / ${MediaQuery.of(context).size.width / 2}');
+                    // _mazePainter.updatePositionByXY(x, y);
+
+                    if (direction != null) _mazePainter.movePlayer(direction);
+                  },
+                )
+              : Container(),
+        ],
+      ),
+    );
+  }
+
+  Widget getJoyStick() {
+    return Joystick(
+        size: 100,
+        isDraggable: false,
+        iconColor: Colors.amber,
+        backgroundColor: Colors.black,
+        opacity: 0.5,
+        joystickMode: JoystickModes.all,
+        onUpPressed: () {
+          _mazePainter.movePlayer(Direction.up);
+        },
+        onLeftPressed: () {
+          _mazePainter.movePlayer(Direction.left);
+        },
+        onRightPressed: () {
+          _mazePainter.movePlayer(Direction.right);
+        },
+        onDownPressed: () {
+          _mazePainter.movePlayer(Direction.down);
+        },
+        onPressed: (_direction) {
+          // print("pressed $_direction");
+        });
   }
 
   Future<ui.Image> _itemToImage(MazeItem item) {

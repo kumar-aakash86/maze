@@ -25,17 +25,17 @@ enum Direction {
 ///Draws the maze based on params
 class MazePainter extends ChangeNotifier implements CustomPainter {
   ///Default constructor
-  MazePainter({
-    required this.playerImage,
-    this.checkpointsImages = const [],
-    this.columns = 7,
-    this.finishImage,
-    this.onCheckpoint,
-    this.onFinish,
-    this.rows = 10,
-    this.wallColor = Colors.black,
-    this.wallThickness = 4.0,
-  }) {
+  MazePainter(
+      {required this.playerImage,
+      this.checkpointsImages = const [],
+      this.columns = 7,
+      this.finishImage,
+      this.onCheckpoint,
+      this.onFinish,
+      this.rows = 10,
+      this.wallColor = Colors.black,
+      this.wallThickness = 4.0,
+      this.mazeBackgroundColor = Colors.transparent}) {
     _wallPaint
       ..color = wallColor
       ..isAntiAlias = true
@@ -98,6 +98,9 @@ class MazePainter extends ChangeNotifier implements CustomPainter {
   ///Position of user from event
   late double _userX;
   late double _userY;
+
+  ///Background color of maze
+  final Color mazeBackgroundColor;
 
   ///This method initialize the maze by randomizing what wall will be disable
   void _createMaze() {
@@ -181,8 +184,13 @@ class MazePainter extends ChangeNotifier implements CustomPainter {
   ///This method is used to notify the user drag position change to the maze
   ///and perfom the movement
   void updatePosition(Offset position) {
-    _userX = position.dx;
-    _userY = position.dy;
+    updatePositionByXY(position.dx, position.dy);
+  }
+
+  /// Update by x & y
+  void updatePositionByXY(double _userX, double _userY) {
+    // _userX = position.dx;
+    // _userY = position.dy;
     notifyListeners();
 
     var playerCenterX = _hMargin + (_player.col + 0.5) * _cellSize;
@@ -223,6 +231,14 @@ class MazePainter extends ChangeNotifier implements CustomPainter {
 
     _hMargin = (size.width - columns * _cellSize) / 2;
     _vMargin = (size.height - rows * _cellSize) / 2;
+
+    var bgPaint = Paint()
+      ..color = mazeBackgroundColor
+      ..style = PaintingStyle.fill;
+    canvas.drawRRect(
+        RRect.fromLTRBAndCorners(
+            _hMargin, _vMargin, size.width - _hMargin, size.height - _vMargin),
+        bgPaint);
 
     var squareMargin = _cellSize / 10;
 

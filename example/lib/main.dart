@@ -26,6 +26,8 @@ class _MazeScreenState extends State<MazeScreen> {
     return Scaffold(
         body: SafeArea(
             child: Maze(
+                mazeBackgroundColor: Colors.blue,
+                controlType: ControlType.joystick,
                 player: MazeItem(
                     'https://image.flaticon.com/icons/png/512/808/808433.png',
                     ImageType.network),
